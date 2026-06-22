@@ -161,6 +161,57 @@
       margin-top: 10px;
     }
 
+    /* Solution steps */
+    .solution-wrap {
+      width: 480px;
+      margin-top: 16px;
+      background: #111128;
+      border: 1px solid #2e2e5a;
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+
+    .solution-title {
+      font-size: 0.78em;
+      color: #7070aa;
+      margin-bottom: 8px;
+    }
+
+    .solution-steps {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+
+    .step-badge {
+      background: #1e1e3a;
+      border: 1px solid #3a3a6a;
+      border-radius: 5px;
+      padding: 2px 7px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #9090cc;
+      min-width: 28px;
+      text-align: center;
+    }
+
+    .step-badge.current {
+      background: #4c1d95;
+      border-color: #a78bfa;
+      color: #e0d0ff;
+    }
+
+    .step-badge.done {
+      opacity: 0.3;
+    }
+
+    #solvingMsg {
+      font-size: 0.85em;
+      color: #a78bfa;
+    }
+
     /* Win overlay */
     .win-overlay {
       display: none;
@@ -228,6 +279,11 @@
   </div>
   <p class="moves-label">移動次數：<span id="movesCount">0</span></p>
 
+  <div class="solution-wrap">
+    <div class="solution-title">解題步驟（依序移動的數字）：<span id="solvingMsg"></span></div>
+    <div class="solution-steps" id="solutionSteps"></div>
+  </div>
+
   <!-- Win -->
   <div class="win-overlay" id="winOverlay">
     <div class="win-box">
@@ -243,13 +299,82 @@
     const GRID = 4;
     const PX = 120;
 
-    let tiles = [];   // tiles[pos] = tileValue (1-15, 0=empty)
+    let tiles = [];
     let emptyPos = 15;
     let moves = 0;
     let isSolved = false;
+    let solution = [];   // sequence of tile values to move
+    let stepIndex = 0;
+
+    // ── IDA* Solver ──────────────────────────────────────────
+    function manhattan(state) {
+      let d = 0;
+      for (let i = 0; i < 16; i++) {
+        if (state[i] === 0) continue;
+        const v = state[i] - 1;
+        d += Math.abs(Math.floor(i / 4) - Math.floor(v / 4)) + Math.abs(i % 4 - v % 4);
+      }
+      return d;
+    }
+
+    function isGoal(state) {
+      for (let i = 0; i < 15; i++) if (state[i] !== i + 1) return false;
+      return state[15] === 0;
+    }
+
+    function idaStar(initState, initEmpty) {
+      const path = [];
+      let bound = manhattan(initState);
+      const state = initState.slice();
+
+      for (let iter = 0; iter < 100; iter++) {
+        const result = dfs(state, initEmpty, 0, bound, path, -1);
+        if (result === -1) return path;
+        if (result === Infinity) return null;
+        bound = result;
+      }
+      return null;
+    }
+
+    function dfs(state, ep, g, bound, path, prevEp) {
+      const f = g + manhattan(state);
+      if (f > bound) return f;
+      if (isGoal(state)) return -1;
+
+      let min = Infinity;
+      const eRow = Math.floor(ep / 4), eCol = ep % 4;
+      const dirs = [
+        ep - 4, // up
+        ep + 4, // down
+        ep - 1, // left
+        ep + 1, // right
+      ];
+      const valid = dirs.filter(nb => {
+        if (nb < 0 || nb >= 16) return false;
+        if (nb === prevEp) return false;
+        const nbRow = Math.floor(nb / 4), nbCol = nb % 4;
+        return Math.abs(eRow - nbRow) + Math.abs(eCol - nbCol) === 1;
+      });
+
+      for (const nb of valid) {
+        const tile = state[nb];
+        state[ep] = tile;
+        state[nb] = 0;
+        path.push(tile);
+
+        const r = dfs(state, nb, g + 1, bound, path, ep);
+        if (r === -1) return -1;
+        if (r < min) min = r;
+
+        path.pop();
+        state[nb] = tile;
+        state[ep] = 0;
+      }
+      return min;
+    }
+    // ─────────────────────────────────────────────────────────
 
     function init() {
-      // Reference grid: 4x4 number grid showing correct order
       const ref = document.getElementById('reference');
       ref.innerHTML = '';
       for (let i = 0; i < 16; i++) {
@@ -268,15 +393,17 @@
     function newGame() {
       moves = 0;
       isSolved = false;
+      solution = [];
+      stepIndex = 0;
       document.getElementById('movesCount').textContent = '0';
       document.getElementById('winOverlay').classList.remove('show');
+      document.getElementById('solutionSteps').innerHTML = '';
+      document.getElementById('solvingMsg').textContent = '計算中…';
 
-      // Solved state: [1,2,3,...,15,0]
       tiles = Array.from({ length: 16 }, (_, i) => (i < 15 ? i + 1 : 0));
       emptyPos = 15;
 
-      // Shuffle via random moves to guarantee solvability
-      for (let i = 0; i < 200; i++) {
+      for (let i = 0; i < 80; i++) {
         const nbrs = neighbors(emptyPos);
         const pick = nbrs[Math.floor(Math.random() * nbrs.length)];
         swap(emptyPos, pick);
@@ -284,6 +411,38 @@
       }
 
       render();
+
+      // Run solver async so render shows first
+      setTimeout(() => {
+        solution = idaStar(tiles.slice(), emptyPos) || [];
+        stepIndex = 0;
+        renderSolution();
+      }, 50);
+    }
+
+    function renderSolution() {
+      const msg = document.getElementById('solvingMsg');
+      const container = document.getElementById('solutionSteps');
+      container.innerHTML = '';
+
+      if (solution.length === 0) {
+        msg.textContent = '（無法求解）';
+        return;
+      }
+      msg.textContent = `共 ${solution.length} 步`;
+
+      solution.forEach((val, idx) => {
+        const badge = document.createElement('div');
+        badge.className = 'step-badge' +
+          (idx < stepIndex ? ' done' : idx === stepIndex ? ' current' : '');
+        badge.textContent = val;
+        badge.id = `step-${idx}`;
+        container.appendChild(badge);
+      });
+
+      // Scroll current badge into view
+      const cur = document.getElementById(`step-${stepIndex}`);
+      if (cur) cur.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
 
     function neighbors(pos) {
@@ -307,6 +466,12 @@
       emptyPos = pos;
       moves++;
       document.getElementById('movesCount').textContent = moves;
+
+      if (solution.length > 0 && stepIndex < solution.length) {
+        stepIndex++;
+        renderSolution();
+      }
+
       render();
       checkWin();
     }
@@ -315,13 +480,11 @@
       for (let i = 0; i < 15; i++) {
         if (tiles[i] !== i + 1) return;
       }
-      // All 15 in place, empty at 15
       isSolved = true;
-      // Flash last tile then show win
       const lastEl = document.querySelector(`.tile[data-pos="14"]`);
       if (lastEl) lastEl.classList.add('landing');
       setTimeout(() => {
-        document.getElementById('finalMoves').textContent = `共移動 ${moves} 次`;
+        document.getElementById('finalMoves').textContent = `共移動 ${moves} 步`;
         document.getElementById('winOverlay').classList.add('show');
       }, 400);
     }
@@ -342,11 +505,15 @@
         el.dataset.pos = pos;
 
         if (val !== 0) {
-          // Image region: tile val belongs at index val-1
           const imgRow = Math.floor((val - 1) / GRID);
           const imgCol = (val - 1) % GRID;
           el.style.backgroundPositionX = -(imgCol * PX) + 'px';
           el.style.backgroundPositionY = -(imgRow * PX) + 'px';
+
+          // Highlight tile that should be moved next
+          if (solution.length > 0 && stepIndex < solution.length && val === solution[stepIndex]) {
+            el.style.boxShadow = '0 0 0 3px #a78bfa, 0 0 14px #a78bfa';
+          }
 
           const num = document.createElement('div');
           num.className = 'num';
@@ -360,7 +527,6 @@
       }
     }
 
-    // Keyboard support
     document.addEventListener('keydown', (e) => {
       const map = {
         ArrowUp: emptyPos + GRID,
@@ -370,7 +536,6 @@
       };
       const target = map[e.key];
       if (target !== undefined && target >= 0 && target < 16) {
-        // Only if same row/col constraint
         const eRow = Math.floor(emptyPos / GRID), eCol = emptyPos % GRID;
         const tRow = Math.floor(target / GRID), tCol = target % GRID;
         if (Math.abs(eRow - tRow) + Math.abs(eCol - tCol) === 1) {
