@@ -212,54 +212,6 @@
       color: #a78bfa;
     }
 
-    /* Win overlay */
-    .win-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0, 0, 0, 0.85);
-      align-items: center;
-      justify-content: center;
-      z-index: 200;
-    }
-
-    .win-overlay.show {
-      display: flex;
-    }
-
-    .win-box {
-      background: #12122a;
-      border: 2px solid #a78bfa;
-      border-radius: 20px;
-      padding: 48px 56px;
-      text-align: center;
-      box-shadow: 0 0 60px #7c3aed66;
-      animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
-    }
-
-    @keyframes popIn {
-      from { transform: scale(0.6); opacity: 0; }
-      to   { transform: scale(1); opacity: 1; }
-    }
-
-    .win-box h2 {
-      font-size: 2.2em;
-      color: #c4b5fd;
-      margin-bottom: 12px;
-      text-shadow: 0 0 20px #a78bfa;
-    }
-
-    .win-box p {
-      color: #9090cc;
-      font-size: 1em;
-      margin-bottom: 24px;
-    }
-
-    .win-box .moves-count {
-      color: #a78bfa;
-      font-size: 1.5em;
-      font-weight: bold;
-    }
   </style>
 </head>
 <body>
@@ -276,24 +228,15 @@
 
   <div class="controls">
     <button onclick="newGame()">重新開始</button>
+    <button onclick="toggleSolution()">顯示解答</button>
   </div>
   <p class="moves-label">移動次數：<span id="movesCount">0</span></p>
 
-  <div class="solution-wrap">
+  <div class="solution-wrap" id="solutionWrap" style="display:none">
     <div class="solution-title">解題步驟（依序移動的數字）：<span id="solvingMsg"></span></div>
     <div class="solution-steps" id="solutionSteps"></div>
   </div>
 
-  <!-- Win -->
-  <div class="win-overlay" id="winOverlay">
-    <div class="win-box">
-      <h2>🎉 拼圖完成！</h2>
-      <p>恭喜完成 Vibe Coding Lab 滑動拼圖！</p>
-      <div class="moves-count" id="finalMoves"></div>
-      <br>
-      <button onclick="document.getElementById('winOverlay').classList.remove('show'); newGame()">再玩一次</button>
-    </div>
-  </div>
 
   <script>
     const GRID = 4;
@@ -509,8 +452,7 @@
       }, 100);
 
       setTimeout(() => {
-        document.getElementById('finalMoves').textContent = `共移動 ${moves} 步`;
-        document.getElementById('winOverlay').classList.add('show');
+        document.getElementById('movesCount').textContent = moves + ' ✓ 完成！';
       }, 700);
     }
 
@@ -569,6 +511,18 @@
         }
       }
     });
+
+    function toggleSolution() {
+      const wrap = document.getElementById('solutionWrap');
+      const btn = event.target;
+      if (wrap.style.display === 'none') {
+        wrap.style.display = 'block';
+        btn.textContent = '隱藏解答';
+      } else {
+        wrap.style.display = 'none';
+        btn.textContent = '顯示解答';
+      }
+    }
 
     init();
     newGame();
