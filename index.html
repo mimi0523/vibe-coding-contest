@@ -315,21 +315,6 @@
     }
     // ─────────────────────────────────────────────────────────
 
-    function init() {
-      const ref = document.getElementById('reference');
-      ref.innerHTML = '';
-      for (let i = 0; i < 16; i++) {
-        const c = document.createElement('div');
-        if (i < 15) {
-          c.className = 'ref-cell';
-          c.textContent = i + 1;
-        } else {
-          c.className = 'ref-cell empty-ref';
-          c.textContent = '□';
-        }
-        ref.appendChild(c);
-      }
-    }
 
     function newGame() {
       moves = 0;
@@ -522,7 +507,6 @@
       }
     }
 
-    init();
     newGame();
   </script>
 </body>
