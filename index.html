@@ -477,16 +477,41 @@
     }
 
     function checkWin() {
-      for (let i = 0; i < 15; i++) {
+      // Check if tiles 1-14 are all in correct positions
+      for (let i = 0; i < 14; i++) {
         if (tiles[i] !== i + 1) return;
       }
+      // tiles[14] and tiles[15] hold {15, 0} in some order
+      if (tiles[14] !== 15 && tiles[14] !== 0) return;
+      if (tiles[15] !== 0 && tiles[15] !== 15) return;
+
       isSolved = true;
-      const lastEl = document.querySelector(`.tile[data-pos="14"]`);
-      if (lastEl) lastEl.classList.add('landing');
+
+      // Auto-fill: if tile 15 is at pos 15 and empty at 14, slide it home
+      if (tiles[14] === 0 && tiles[15] === 15) {
+        tiles[14] = 15;
+        tiles[15] = 0;
+        emptyPos = 15;
+        render();
+      }
+
+      // Now visually fill the empty space (pos 15) with the final image piece
+      setTimeout(() => {
+        const puzzle = document.getElementById('puzzle');
+        const fill = document.createElement('div');
+        fill.className = 'tile landing';
+        fill.style.left = (3 * PX) + 'px';
+        fill.style.top = (3 * PX) + 'px';
+        fill.style.backgroundPositionX = -(3 * PX) + 'px';
+        fill.style.backgroundPositionY = -(3 * PX) + 'px';
+        fill.style.border = '1.5px solid #a78bfa';
+        puzzle.appendChild(fill);
+      }, 100);
+
       setTimeout(() => {
         document.getElementById('finalMoves').textContent = `共移動 ${moves} 步`;
         document.getElementById('winOverlay').classList.add('show');
-      }, 400);
+      }, 700);
     }
 
     function render() {
