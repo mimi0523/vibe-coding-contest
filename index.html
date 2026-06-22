@@ -32,7 +32,7 @@
       margin-bottom: 18px;
     }
 
-    /* Reference strip */
+    /* Reference grid */
     .reference-label {
       font-size: 0.75em;
       color: #7070aa;
@@ -43,28 +43,40 @@
 
     .reference {
       display: grid;
-      grid-template-columns: repeat(16, 1fr);
-      gap: 3px;
-      width: 480px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+      width: 200px;
       margin-bottom: 18px;
+      border: 1.5px solid #4a2d9a;
+      border-radius: 6px;
+      overflow: hidden;
+      box-shadow: 0 0 12px #5b21b633;
     }
 
     .ref-cell {
-      background: #1e1e3a;
-      border: 1px solid #3a3a6a;
-      border-radius: 4px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 11px;
-      color: #9090cc;
+      position: relative;
+      width: 50px;
+      height: 50px;
+      background-image: url('game.png');
+      background-size: 200px 200px;
+    }
+
+    .ref-cell .ref-num {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      background: rgba(0,0,0,0.65);
+      color: #d0d0ff;
+      font-size: 10px;
       font-weight: bold;
+      padding: 0 3px;
+      border-radius: 3px;
+      line-height: 1.4;
     }
 
     .ref-cell.empty-ref {
-      background: #111128;
-      color: #333;
+      background-image: none;
+      background-color: #0a0a18;
     }
 
     /* Puzzle */
@@ -215,7 +227,7 @@
   <h1>✦ VIBE CODING LAB ✦</h1>
   <p class="subtitle">滑動拼圖挑戰 — 4×4</p>
 
-  <p class="reference-label">標準答案編號參考（左→右，上→下）</p>
+  <p class="reference-label">標準答案（點擊可展開）</p>
   <div class="reference" id="reference"></div>
 
   <div class="puzzle-wrap">
@@ -248,19 +260,26 @@
     let isSolved = false;
 
     function init() {
-      // Reference strip: 1~15 then empty
+      // Reference grid: 4x4 mini solved image with numbers
       const ref = document.getElementById('reference');
       ref.innerHTML = '';
-      for (let i = 1; i <= 15; i++) {
+      for (let i = 0; i < 16; i++) {
         const c = document.createElement('div');
-        c.className = 'ref-cell';
-        c.textContent = i;
+        if (i < 15) {
+          const row = Math.floor(i / GRID);
+          const col = i % GRID;
+          c.className = 'ref-cell';
+          c.style.backgroundPositionX = -(col * 50) + 'px';
+          c.style.backgroundPositionY = -(row * 50) + 'px';
+          const num = document.createElement('span');
+          num.className = 'ref-num';
+          num.textContent = i + 1;
+          c.appendChild(num);
+        } else {
+          c.className = 'ref-cell empty-ref';
+        }
         ref.appendChild(c);
       }
-      const ec = document.createElement('div');
-      ec.className = 'ref-cell empty-ref';
-      ec.textContent = '□';
-      ref.appendChild(ec);
     }
 
     function newGame() {
