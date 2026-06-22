@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibe Coding Lab - 滑動拼圖</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #0d0d1a;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    h1 {
+      font-size: 1.6em;
+      color: #c4b5fd;
+      letter-spacing: 2px;
+      margin-bottom: 6px;
+      text-shadow: 0 0 20px #a78bfa88;
+    }
+
+    .subtitle {
+      font-size: 0.85em;
+      color: #6b6b9a;
+      margin-bottom: 18px;
+    }
+
+    /* Reference strip */
+    .reference-label {
+      font-size: 0.75em;
+      color: #7070aa;
+      margin-bottom: 6px;
+      align-self: flex-start;
+      margin-left: calc(50% - 240px);
+    }
+
+    .reference {
+      display: grid;
+      grid-template-columns: repeat(16, 1fr);
+      gap: 3px;
+      width: 480px;
+      margin-bottom: 18px;
+    }
+
+    .ref-cell {
+      background: #1e1e3a;
+      border: 1px solid #3a3a6a;
+      border-radius: 4px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #9090cc;
+      font-weight: bold;
+    }
+
+    .ref-cell.empty-ref {
+      background: #111128;
+      color: #333;
+    }
+
+    /* Puzzle */
+    .puzzle-wrap {
+      position: relative;
+    }
+
+    .puzzle {
+      position: relative;
+      width: 480px;
+      height: 480px;
+      border: 2px solid #6d28d9;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 30px #7c3aed44;
+    }
+
+    .tile {
+      position: absolute;
+      width: 120px;
+      height: 120px;
+      cursor: pointer;
+      background-image: url('game.png');
+      background-size: 480px 480px;
+      border: 1.5px solid rgba(109, 40, 217, 0.4);
+      transition: left 0.12s ease, top 0.12s ease, filter 0.1s;
+      user-select: none;
+    }
+
+    .tile:hover {
+      filter: brightness(1.15) drop-shadow(0 0 6px #a78bfa);
+      z-index: 10;
+    }
+
+    .tile .num {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      background: rgba(0, 0, 0, 0.65);
+      color: #d0d0ff;
+      font-size: 12px;
+      font-weight: bold;
+      padding: 1px 5px;
+      border-radius: 4px;
+      pointer-events: none;
+    }
+
+    .tile.empty {
+      background-image: none;
+      background-color: #0a0a18;
+      cursor: default;
+      border: 1.5px dashed #2a2a4a;
+    }
+
+    .tile.empty:hover {
+      filter: none;
+    }
+
+    .tile.landing {
+      animation: landIn 0.3s ease;
+    }
+
+    @keyframes landIn {
+      from { filter: brightness(2); }
+      to   { filter: brightness(1); }
+    }
+
+    /* Controls */
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+    }
+
+    button {
+      background: #4c1d95;
+      color: #e0d0ff;
+      border: 1px solid #7c3aed;
+      border-radius: 8px;
+      padding: 8px 20px;
+      font-size: 0.9em;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    button:hover {
+      background: #6d28d9;
+    }
+
+    .moves-label {
+      font-size: 0.85em;
+      color: #7070aa;
+      margin-top: 10px;
+    }
+
+    /* Win overlay */
+    .win-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.85);
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+
+    .win-overlay.show {
+      display: flex;
+    }
+
+    .win-box {
+      background: #12122a;
+      border: 2px solid #a78bfa;
+      border-radius: 20px;
+      padding: 48px 56px;
+      text-align: center;
+      box-shadow: 0 0 60px #7c3aed66;
+      animation: popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.6); opacity: 0; }
+      to   { transform: scale(1); opacity: 1; }
+    }
+
+    .win-box h2 {
+      font-size: 2.2em;
+      color: #c4b5fd;
+      margin-bottom: 12px;
+      text-shadow: 0 0 20px #a78bfa;
+    }
+
+    .win-box p {
+      color: #9090cc;
+      font-size: 1em;
+      margin-bottom: 24px;
+    }
+
+    .win-box .moves-count {
+      color: #a78bfa;
+      font-size: 1.5em;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>✦ VIBE CODING LAB ✦</h1>
+  <p class="subtitle">滑動拼圖挑戰 — 4×4</p>
+
+  <p class="reference-label">標準答案編號參考（左→右，上→下）</p>
+  <div class="reference" id="reference"></div>
+
+  <div class="puzzle-wrap">
+    <div class="puzzle" id="puzzle"></div>
+  </div>
+
+  <div class="controls">
+    <button onclick="newGame()">重新開始</button>
+  </div>
+  <p class="moves-label">移動次數：<span id="movesCount">0</span></p>
+
+  <!-- Win -->
+  <div class="win-overlay" id="winOverlay">
+    <div class="win-box">
+      <h2>🎉 拼圖完成！</h2>
+      <p>恭喜完成 Vibe Coding Lab 滑動拼圖！</p>
+      <div class="moves-count" id="finalMoves"></div>
+      <br>
+      <button onclick="document.getElementById('winOverlay').classList.remove('show'); newGame()">再玩一次</button>
+    </div>
+  </div>
+
+  <script>
+    const GRID = 4;
+    const PX = 120;
+
+    let tiles = [];   // tiles[pos] = tileValue (1-15, 0=empty)
+    let emptyPos = 15;
+    let moves = 0;
+    let isSolved = false;
+
+    function init() {
+      // Reference strip: 1~15 then empty
+      const ref = document.getElementById('reference');
+      ref.innerHTML = '';
+      for (let i = 1; i <= 15; i++) {
+        const c = document.createElement('div');
+        c.className = 'ref-cell';
+        c.textContent = i;
+        ref.appendChild(c);
+      }
+      const ec = document.createElement('div');
+      ec.className = 'ref-cell empty-ref';
+      ec.textContent = '□';
+      ref.appendChild(ec);
+    }
+
+    function newGame() {
+      moves = 0;
+      isSolved = false;
+      document.getElementById('movesCount').textContent = '0';
+      document.getElementById('winOverlay').classList.remove('show');
+
+      // Solved state: [1,2,3,...,15,0]
+      tiles = Array.from({ length: 16 }, (_, i) => (i < 15 ? i + 1 : 0));
+      emptyPos = 15;
+
+      // Shuffle via random moves to guarantee solvability
+      for (let i = 0; i < 200; i++) {
+        const nbrs = neighbors(emptyPos);
+        const pick = nbrs[Math.floor(Math.random() * nbrs.length)];
+        swap(emptyPos, pick);
+        emptyPos = pick;
+      }
+
+      render();
+    }
+
+    function neighbors(pos) {
+      const r = Math.floor(pos / GRID), c = pos % GRID;
+      const n = [];
+      if (r > 0) n.push(pos - GRID);
+      if (r < GRID - 1) n.push(pos + GRID);
+      if (c > 0) n.push(pos - 1);
+      if (c < GRID - 1) n.push(pos + 1);
+      return n;
+    }
+
+    function swap(a, b) {
+      [tiles[a], tiles[b]] = [tiles[b], tiles[a]];
+    }
+
+    function clickPos(pos) {
+      if (isSolved) return;
+      if (!neighbors(emptyPos).includes(pos)) return;
+      swap(emptyPos, pos);
+      emptyPos = pos;
+      moves++;
+      document.getElementById('movesCount').textContent = moves;
+      render();
+      checkWin();
+    }
+
+    function checkWin() {
+      for (let i = 0; i < 15; i++) {
+        if (tiles[i] !== i + 1) return;
+      }
+      // All 15 in place, empty at 15
+      isSolved = true;
+      // Flash last tile then show win
+      const lastEl = document.querySelector(`.tile[data-pos="14"]`);
+      if (lastEl) lastEl.classList.add('landing');
+      setTimeout(() => {
+        document.getElementById('finalMoves').textContent = `共移動 ${moves} 次`;
+        document.getElementById('winOverlay').classList.add('show');
+      }, 400);
+    }
+
+    function render() {
+      const puzzle = document.getElementById('puzzle');
+      puzzle.innerHTML = '';
+
+      for (let pos = 0; pos < 16; pos++) {
+        const val = tiles[pos];
+        const row = Math.floor(pos / GRID);
+        const col = pos % GRID;
+
+        const el = document.createElement('div');
+        el.className = 'tile' + (val === 0 ? ' empty' : '');
+        el.style.left = col * PX + 'px';
+        el.style.top = row * PX + 'px';
+        el.dataset.pos = pos;
+
+        if (val !== 0) {
+          // Image region: tile val belongs at index val-1
+          const imgRow = Math.floor((val - 1) / GRID);
+          const imgCol = (val - 1) % GRID;
+          el.style.backgroundPositionX = -(imgCol * PX) + 'px';
+          el.style.backgroundPositionY = -(imgRow * PX) + 'px';
+
+          const num = document.createElement('div');
+          num.className = 'num';
+          num.textContent = val;
+          el.appendChild(num);
+
+          el.addEventListener('click', () => clickPos(pos));
+        }
+
+        puzzle.appendChild(el);
+      }
+    }
+
+    // Keyboard support
+    document.addEventListener('keydown', (e) => {
+      const map = {
+        ArrowUp: emptyPos + GRID,
+        ArrowDown: emptyPos - GRID,
+        ArrowLeft: emptyPos + 1,
+        ArrowRight: emptyPos - 1,
+      };
+      const target = map[e.key];
+      if (target !== undefined && target >= 0 && target < 16) {
+        // Only if same row/col constraint
+        const eRow = Math.floor(emptyPos / GRID), eCol = emptyPos % GRID;
+        const tRow = Math.floor(target / GRID), tCol = target % GRID;
+        if (Math.abs(eRow - tRow) + Math.abs(eCol - tCol) === 1) {
+          e.preventDefault();
+          clickPos(target);
+        }
+      }
+    });
+
+    init();
+    newGame();
+  </script>
+</body>
+</html>
