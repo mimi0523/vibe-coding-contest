@@ -155,6 +155,33 @@
       background: #6d28d9;
     }
 
+    .difficulty-wrap {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 14px;
+      align-items: center;
+    }
+
+    .difficulty-label {
+      font-size: 0.78em;
+      color: #6b6b9a;
+      margin-right: 4px;
+    }
+
+    .diff-btn {
+      padding: 5px 14px;
+      font-size: 0.82em;
+      background: #1a1a30;
+      border: 1px solid #3a3a6a;
+      color: #8080b0;
+    }
+
+    .diff-btn.active {
+      background: #4c1d95;
+      border-color: #a78bfa;
+      color: #e0d0ff;
+    }
+
     .moves-label {
       font-size: 0.85em;
       color: #7070aa;
@@ -220,6 +247,13 @@
   <p class="subtitle">滑動拼圖挑戰 — 4×4</p>
 
 
+  <div class="difficulty-wrap">
+    <span class="difficulty-label">難易度：</span>
+    <button class="diff-btn active" onclick="setDifficulty(this, 20)">簡單</button>
+    <button class="diff-btn" onclick="setDifficulty(this, 80)">普通</button>
+    <button class="diff-btn" onclick="setDifficulty(this, 180)">困難</button>
+  </div>
+
   <div class="puzzle-wrap">
     <div class="puzzle" id="puzzle"></div>
   </div>
@@ -244,8 +278,16 @@
     let emptyPos = 15;
     let moves = 0;
     let isSolved = false;
-    let solution = [];   // sequence of tile values to move
+    let solution = [];
     let stepIndex = 0;
+    let shuffleCount = 20; // default: 簡單
+
+    function setDifficulty(btn, count) {
+      document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      shuffleCount = count;
+      newGame();
+    }
 
     // ── IDA* Solver ──────────────────────────────────────────
     function manhattan(state) {
@@ -328,7 +370,7 @@
       tiles = Array.from({ length: 16 }, (_, i) => (i < 15 ? i + 1 : 0));
       emptyPos = 15;
 
-      for (let i = 0; i < 80; i++) {
+      for (let i = 0; i < shuffleCount; i++) {
         const nbrs = neighbors(emptyPos);
         const pick = nbrs[Math.floor(Math.random() * nbrs.length)];
         swap(emptyPos, pick);
